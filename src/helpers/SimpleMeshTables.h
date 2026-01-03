@@ -6,7 +6,7 @@
   #include <FS.h>
 #endif
 
-#define MAX_PACKET_HASHES  128
+#define MAX_PACKET_HASHES  256
 #define MAX_PACKET_ACKS     64
 
 class SimpleMeshTables : public mesh::MeshTables {
