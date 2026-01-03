@@ -1,4 +1,5 @@
 #include "StaticPoolPacketManager.h"
+#include <MeshCore.h>
 
 PacketQueue::PacketQueue(int max_entries) {
   _table = new mesh::Packet*[max_entries];
@@ -6,6 +7,7 @@ PacketQueue::PacketQueue(int max_entries) {
   _schedule_table = new uint32_t[max_entries];
   _size = max_entries;
   _num = 0;
+  _drop_count = 0;
 }
 
 int PacketQueue::countBefore(uint32_t now) const {
@@ -57,7 +59,8 @@ mesh::Packet* PacketQueue::removeByIdx(int i) {
 
 void PacketQueue::add(mesh::Packet* packet, uint8_t priority, uint32_t scheduled_for) {
   if (_num == _size) {
-    // TODO: log "FATAL: queue is full!"
+    _drop_count++;
+    MESH_DEBUG_PRINTLN("PacketQueue: queue full, packet dropped (total drops: %u)", _drop_count);
     return;
   }
   _table[_num] = packet;
