@@ -408,7 +408,15 @@ int MyMesh::calcRxDelay(float score, uint32_t air_time) const {
 
 uint32_t MyMesh::getRetransmitDelay(const mesh::Packet *packet) {
   uint32_t t = (_radio->getEstAirtimeFor(packet->path_len + packet->payload_len + 2) * _prefs.tx_delay_factor);
-  return getRNG()->nextInt(0, 5*t + 1);
+
+  // Dynamic backpressure: scale max_multiplier from 5 to 15 based on queue depth
+  // This spreads out retransmissions when the queue is congested
+  int queue_len = _mgr->getOutboundCount(0xFFFFFFFF);
+  // Scale linearly: 0 packets -> multiplier 5, 40+ packets -> multiplier 15
+  int max_multiplier = 5 + (queue_len * 10 / 40);  // +10 over 40 packets
+  if (max_multiplier > 15) max_multiplier = 15;
+
+  return getRNG()->nextInt(0, max_multiplier*t + 1);
 }
 uint32_t MyMesh::getDirectRetransmitDelay(const mesh::Packet *packet) {
   uint32_t t = (_radio->getEstAirtimeFor(packet->path_len + packet->payload_len + 2) * _prefs.direct_tx_delay_factor);
