@@ -1,5 +1,34 @@
 #include "MyMesh.h"
 #include <algorithm>
+#include <cmath>
+
+// Lookup table for pow(10, 0.85 - score) - 1, where score ranges from 0.0 to 1.0
+// Pre-computed values at 0.05 increments (21 entries) to avoid expensive pow() calls
+// Table index = score * 20 (e.g., score 0.5 -> index 10)
+// Same as Dispatcher::RX_DELAY_LUT for consistent behavior
+static const float RX_DELAY_LUT[21] = {
+  6.07946f,   // score = 0.00: pow(10, 0.85) - 1
+  5.30957f,   // score = 0.05: pow(10, 0.80) - 1
+  4.62341f,   // score = 0.10: pow(10, 0.75) - 1
+  4.01187f,   // score = 0.15: pow(10, 0.70) - 1
+  3.46737f,   // score = 0.20: pow(10, 0.65) - 1
+  2.98107f,   // score = 0.25: pow(10, 0.60) - 1
+  2.54813f,   // score = 0.30: pow(10, 0.55) - 1
+  2.16228f,   // score = 0.35: pow(10, 0.50) - 1
+  1.81838f,   // score = 0.40: pow(10, 0.45) - 1
+  1.51189f,   // score = 0.45: pow(10, 0.40) - 1
+  1.23872f,   // score = 0.50: pow(10, 0.35) - 1
+  0.99526f,   // score = 0.55: pow(10, 0.30) - 1
+  0.77828f,   // score = 0.60: pow(10, 0.25) - 1
+  0.58489f,   // score = 0.65: pow(10, 0.20) - 1
+  0.41254f,   // score = 0.70: pow(10, 0.15) - 1
+  0.25893f,   // score = 0.75: pow(10, 0.10) - 1
+  0.12202f,   // score = 0.80: pow(10, 0.05) - 1
+  0.00000f,   // score = 0.85: pow(10, 0.00) - 1 = 0
+ -0.10875f,   // score = 0.90: pow(10, -0.05) - 1
+ -0.20567f,   // score = 0.95: pow(10, -0.10) - 1
+ -0.29205f    // score = 1.00: pow(10, -0.15) - 1
+};
 
 /* ------------------------------ Config -------------------------------- */
 
@@ -403,7 +432,33 @@ void MyMesh::logTxFail(mesh::Packet *pkt, int len) {
 
 int MyMesh::calcRxDelay(float score, uint32_t air_time) const {
   if (_prefs.rx_delay_base <= 0.0f) return 0;
-  return (int)((pow(_prefs.rx_delay_base, 0.85f - score) - 1.0) * air_time);
+
+  // Use lookup table with linear interpolation for base 10 (same as Dispatcher::calcRxDelay)
+  // This avoids expensive pow() calls on embedded platforms
+  if (std::fabs(_prefs.rx_delay_base - 10.0f) < 0.01f) {
+    // Clamp score to valid range [0.0, 1.0]
+    float s = score;
+    if (s < 0.0f) s = 0.0f;
+    if (s > 1.0f) s = 1.0f;
+
+    // Convert score to table index (0.05 increments, 21 entries)
+    float idx_f = s * 20.0f;
+    int idx = (int)idx_f;
+
+    // Handle edge case at score = 1.0
+    if (idx >= 20) {
+      return (int)(RX_DELAY_LUT[20] * air_time);
+    }
+
+    // Linear interpolation between table entries
+    float frac = idx_f - idx;
+    float factor = RX_DELAY_LUT[idx] + frac * (RX_DELAY_LUT[idx + 1] - RX_DELAY_LUT[idx]);
+
+    return (int)(factor * air_time);
+  }
+
+  // Fallback to pow() for non-standard base values
+  return (int)((std::pow(_prefs.rx_delay_base, 0.85f - score) - 1.0) * air_time);
 }
 
 uint32_t MyMesh::getRetransmitDelay(const mesh::Packet *packet) {
