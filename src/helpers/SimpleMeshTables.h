@@ -8,6 +8,7 @@
 
 #define MAX_PACKET_HASHES  256
 #define MAX_PACKET_ACKS     64
+#define BUCKET_PROBE_SLOTS   4   // Linear probing: check this many slots per bucket
 
 class SimpleMeshTables : public mesh::MeshTables {
   uint8_t _hashes[MAX_PACKET_HASHES*MAX_HASH_SIZE];
@@ -67,19 +68,36 @@ public:
 
     // O(1) bucket lookup using first 2 bytes of hash as index
     uint16_t bucket = hashToBucket(hash);
-    uint8_t* slot = &_hashes[bucket * MAX_HASH_SIZE];
 
-    if (memcmp(hash, slot, MAX_HASH_SIZE) == 0) {
-      if (packet->isRouteDirect()) {
-        _direct_dups++;   // keep some stats
-      } else {
-        _flood_dups++;
+    // Linear probing: check BUCKET_PROBE_SLOTS consecutive slots
+    int emptySlotIdx = -1;  // Track first empty slot for insertion
+    for (int i = 0; i < BUCKET_PROBE_SLOTS; i++) {
+      uint16_t probeIdx = (bucket + i) % MAX_PACKET_HASHES;
+      uint8_t* slot = &_hashes[probeIdx * MAX_HASH_SIZE];
+
+      // Check if this slot matches
+      if (memcmp(hash, slot, MAX_HASH_SIZE) == 0) {
+        if (packet->isRouteDirect()) {
+          _direct_dups++;   // keep some stats
+        } else {
+          _flood_dups++;
+        }
+        return true;
       }
-      return true;
+
+      // Track first empty slot for later insertion
+      if (emptySlotIdx < 0) {
+        bool isEmpty = true;
+        for (int j = 0; j < MAX_HASH_SIZE; j++) {
+          if (slot[j] != 0) { isEmpty = false; break; }
+        }
+        if (isEmpty) emptySlotIdx = probeIdx;
+      }
     }
 
-    // Not seen - store in bucket (overwrites any previous entry in this bucket)
-    memcpy(slot, hash, MAX_HASH_SIZE);
+    // Not seen - store in first empty slot, or first probed slot if all full
+    int insertIdx = (emptySlotIdx >= 0) ? emptySlotIdx : bucket;
+    memcpy(&_hashes[insertIdx * MAX_HASH_SIZE], hash, MAX_HASH_SIZE);
     return false;
   }
 
@@ -99,10 +117,16 @@ public:
 
       // O(1) bucket lookup using first 2 bytes of hash as index
       uint16_t bucket = hashToBucket(hash);
-      uint8_t* slot = &_hashes[bucket * MAX_HASH_SIZE];
 
-      if (memcmp(hash, slot, MAX_HASH_SIZE) == 0) {
-        memset(slot, 0, MAX_HASH_SIZE);
+      // Linear probing: check BUCKET_PROBE_SLOTS consecutive slots
+      for (int i = 0; i < BUCKET_PROBE_SLOTS; i++) {
+        uint16_t probeIdx = (bucket + i) % MAX_PACKET_HASHES;
+        uint8_t* slot = &_hashes[probeIdx * MAX_HASH_SIZE];
+
+        if (memcmp(hash, slot, MAX_HASH_SIZE) == 0) {
+          memset(slot, 0, MAX_HASH_SIZE);
+          break;  // Found and cleared, done
+        }
       }
     }
   }
