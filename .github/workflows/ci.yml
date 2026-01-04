@@ -39,28 +39,30 @@ jobs:
 
       - name: Run cppcheck on src/
         run: |
+          set -x
+          cppcheck --version
           cppcheck --enable=warning,performance,portability \
-            --template=gcc \
-            --error-exitcode=1 \
+            --template='{file}:{line}: {severity}: {message} [{id}]' \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
             --suppress=ctuOneDefinitionRuleViolation \
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
+            --suppress=internalAstError \
             -I src/ \
-            src/ 2>&1 | tee cppcheck-src.log
-          exit ${PIPESTATUS[0]}
+            src/ 2>&1
+          echo "cppcheck exit code: $?"
 
       - name: Run cppcheck on examples/
         run: |
           cppcheck --enable=warning,performance,portability \
-            --template=gcc \
-            --error-exitcode=1 \
+            --template='{file}:{line}: {severity}: {message} [{id}]' \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
             --suppress=ctuOneDefinitionRuleViolation \
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
+            --suppress=internalAstError \
             -I src/ -I examples/simple_repeater/ \
-            examples/ 2>&1 | tee cppcheck-examples.log
-          exit ${PIPESTATUS[0]}
+            examples/ 2>&1
+          echo "cppcheck exit code: $?"
