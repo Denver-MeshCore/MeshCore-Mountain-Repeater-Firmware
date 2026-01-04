@@ -40,6 +40,7 @@ jobs:
       - name: Run cppcheck on src/
         run: |
           cppcheck --enable=warning,performance,portability \
+            --template=gcc \
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
@@ -47,11 +48,13 @@ jobs:
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
             -I src/ \
-            src/
+            src/ 2>&1 | tee cppcheck-src.log
+          exit ${PIPESTATUS[0]}
 
       - name: Run cppcheck on examples/
         run: |
           cppcheck --enable=warning,performance,portability \
+            --template=gcc \
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
@@ -59,4 +62,5 @@ jobs:
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
             -I src/ -I examples/simple_repeater/ \
-            examples/
+            examples/ 2>&1 | tee cppcheck-examples.log
+          exit ${PIPESTATUS[0]}
