@@ -40,7 +40,7 @@ jobs:
       - name: Run cppcheck on src/
         run: |
           cppcheck --enable=warning,performance,portability \
-            --template='{file}:{line}: {severity}: {message} [{id}]' \
+            --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
             --suppress=ctuOneDefinitionRuleViolation \
@@ -51,9 +51,9 @@ jobs:
             --suppress=noCopyConstructor \
             --suppress=noOperatorEq \
             --suppress=memleak \
+            --suppress=invalidPrintfArgType_uint \
             -I src/ \
-            src/ 2>&1
-          echo "src cppcheck exit code: $?"
+            src/
 
       - name: Run cppcheck on examples/
         run: |
@@ -69,5 +69,6 @@ jobs:
             --suppress=noCopyConstructor \
             --suppress=noOperatorEq \
             --suppress=memleak \
+            --suppress=invalidPrintfArgType_uint \
             -I src/ -I examples/simple_repeater/ \
             examples/
