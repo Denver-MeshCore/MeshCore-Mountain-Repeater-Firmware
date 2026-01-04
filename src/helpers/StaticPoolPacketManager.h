@@ -7,6 +7,7 @@ class PacketQueue {
   uint8_t* _pri_table;
   uint32_t* _schedule_table;
   int _size, _num;
+  uint32_t _drop_count;
 
 public:
   PacketQueue(int max_entries);
@@ -16,6 +17,7 @@ public:
   int countBefore(uint32_t now) const;
   mesh::Packet* itemAt(int i) const { return _table[i]; }
   mesh::Packet* removeByIdx(int i);
+  uint32_t getDropCount() const { return _drop_count; }
 };
 
 class StaticPoolPacketManager : public mesh::PacketManager {

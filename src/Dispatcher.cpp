@@ -4,11 +4,36 @@
   #include <Arduino.h>
 #endif
 
-#include <math.h>
-
 namespace mesh {
 
 #define MAX_RX_DELAY_MILLIS   32000  // 32 seconds
+
+// Lookup table for pow(10, 0.85 - score) - 1, where score ranges from 0.0 to 1.0
+// Pre-computed values at 0.05 increments (21 entries) to avoid expensive pow() calls
+// Table index = score * 20 (e.g., score 0.5 -> index 10)
+static const float RX_DELAY_LUT[21] = {
+  6.07946f,   // score = 0.00: pow(10, 0.85) - 1
+  5.30957f,   // score = 0.05: pow(10, 0.80) - 1
+  4.62341f,   // score = 0.10: pow(10, 0.75) - 1
+  4.01187f,   // score = 0.15: pow(10, 0.70) - 1
+  3.46737f,   // score = 0.20: pow(10, 0.65) - 1
+  2.98107f,   // score = 0.25: pow(10, 0.60) - 1
+  2.54813f,   // score = 0.30: pow(10, 0.55) - 1
+  2.16228f,   // score = 0.35: pow(10, 0.50) - 1
+  1.81838f,   // score = 0.40: pow(10, 0.45) - 1
+  1.51189f,   // score = 0.45: pow(10, 0.40) - 1
+  1.23872f,   // score = 0.50: pow(10, 0.35) - 1
+  0.99526f,   // score = 0.55: pow(10, 0.30) - 1
+  0.77828f,   // score = 0.60: pow(10, 0.25) - 1
+  0.58489f,   // score = 0.65: pow(10, 0.20) - 1
+  0.41254f,   // score = 0.70: pow(10, 0.15) - 1
+  0.25893f,   // score = 0.75: pow(10, 0.10) - 1
+  0.12202f,   // score = 0.80: pow(10, 0.05) - 1
+  0.00000f,   // score = 0.85: pow(10, 0.00) - 1 = 0
+ -0.10875f,   // score = 0.90: pow(10, -0.05) - 1
+ -0.20567f,   // score = 0.95: pow(10, -0.10) - 1
+ -0.29205f    // score = 1.00: pow(10, -0.15) - 1
+};
 
 #ifndef NOISE_FLOOR_CALIB_INTERVAL
   #define NOISE_FLOOR_CALIB_INTERVAL   2000     // 2 seconds
@@ -29,7 +54,29 @@ float Dispatcher::getAirtimeBudgetFactor() const {
 }
 
 int Dispatcher::calcRxDelay(float score, uint32_t air_time) const {
-  return (int) ((pow(10, 0.85f - score) - 1.0) * air_time);
+  // Use lookup table with linear interpolation instead of expensive pow() call
+  // Clamp score to valid range [0.0, 1.0]
+  if (score < 0.0f) score = 0.0f;
+  if (score > 1.0f) score = 1.0f;
+
+  // Convert score to table index (0.05 increments, 21 entries)
+  float idx_f = score * 20.0f;
+  int idx = (int)idx_f;
+
+  // Handle edge case at score = 1.0
+  if (idx >= 20) {
+    int result = (int)(RX_DELAY_LUT[20] * air_time);
+    // Clamp to minimum 0 to prevent negative delays when score > 0.85
+    return result < 0 ? 0 : result;
+  }
+
+  // Linear interpolation between table entries
+  float frac = idx_f - idx;
+  float factor = RX_DELAY_LUT[idx] + frac * (RX_DELAY_LUT[idx + 1] - RX_DELAY_LUT[idx]);
+
+  int result = (int)(factor * air_time);
+  // Clamp to minimum 0 to prevent negative delays when score > 0.85
+  return result < 0 ? 0 : result;
 }
 
 uint32_t Dispatcher::getCADFailRetryDelay() const {
