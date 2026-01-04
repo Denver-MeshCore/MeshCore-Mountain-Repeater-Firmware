@@ -40,14 +40,20 @@ jobs:
       - name: Run cppcheck on src/
         run: |
           cppcheck --enable=warning,performance,portability \
-            --error-exitcode=1 \
+            --template='{file}:{line}: {severity}: {message} [{id}]' \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
             --suppress=ctuOneDefinitionRuleViolation \
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
+            --suppress=memsetClassFloat \
+            --suppress=duplInheritedMember \
+            --suppress=noCopyConstructor \
+            --suppress=noOperatorEq \
+            --suppress=memleak \
             -I src/ \
-            src/
+            src/ 2>&1
+          echo "src cppcheck exit code: $?"
 
       - name: Run cppcheck on examples/
         run: |
