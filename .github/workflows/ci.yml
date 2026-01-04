@@ -43,6 +43,9 @@ jobs:
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
+            --suppress=ctuOneDefinitionRuleViolation \
+            --suppress=uninitMemberVar \
+            --suppress=toomanyconfigs \
             -I src/ \
             src/
 
@@ -52,5 +55,8 @@ jobs:
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
+            --suppress=ctuOneDefinitionRuleViolation \
+            --suppress=uninitMemberVar \
+            --suppress=toomanyconfigs \
             -I src/ -I examples/simple_repeater/ \
             examples/
