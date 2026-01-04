@@ -447,18 +447,24 @@ int MyMesh::calcRxDelay(float score, uint32_t air_time) const {
 
     // Handle edge case at score = 1.0
     if (idx >= 20) {
-      return (int)(RX_DELAY_LUT[20] * air_time);
+      int result = (int)(RX_DELAY_LUT[20] * air_time);
+      // Clamp to minimum 0 to prevent negative delays when score > 0.85
+      return result < 0 ? 0 : result;
     }
 
     // Linear interpolation between table entries
     float frac = idx_f - idx;
     float factor = RX_DELAY_LUT[idx] + frac * (RX_DELAY_LUT[idx + 1] - RX_DELAY_LUT[idx]);
 
-    return (int)(factor * air_time);
+    int result = (int)(factor * air_time);
+    // Clamp to minimum 0 to prevent negative delays when score > 0.85
+    return result < 0 ? 0 : result;
   }
 
   // Fallback to pow() for non-standard base values
-  return (int)((std::pow(_prefs.rx_delay_base, 0.85f - score) - 1.0) * air_time);
+  int result = (int)((std::pow(_prefs.rx_delay_base, 0.85f - score) - 1.0) * air_time);
+  // Clamp to minimum 0 to prevent negative delays when score > 0.85
+  return result < 0 ? 0 : result;
 }
 
 uint32_t MyMesh::getRetransmitDelay(const mesh::Packet *packet) {
