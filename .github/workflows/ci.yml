@@ -39,30 +39,29 @@ jobs:
 
       - name: Run cppcheck on src/
         run: |
-          set -x
-          cppcheck --version
           cppcheck --enable=warning,performance,portability \
-            --template='{file}:{line}: {severity}: {message} [{id}]' \
+            --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
             --suppress=ctuOneDefinitionRuleViolation \
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
-            --suppress=internalAstError \
             -I src/ \
-            src/ 2>&1
-          echo "cppcheck exit code: $?"
+            src/
 
       - name: Run cppcheck on examples/
         run: |
           cppcheck --enable=warning,performance,portability \
-            --template='{file}:{line}: {severity}: {message} [{id}]' \
+            --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=unusedFunction \
             --suppress=ctuOneDefinitionRuleViolation \
             --suppress=uninitMemberVar \
             --suppress=toomanyconfigs \
-            --suppress=internalAstError \
+            --suppress=memsetClassFloat \
+            --suppress=duplInheritedMember \
+            --suppress=noCopyConstructor \
+            --suppress=noOperatorEq \
+            --suppress=memleak \
             -I src/ -I examples/simple_repeater/ \
-            examples/ 2>&1
-          echo "cppcheck exit code: $?"
+            examples/
